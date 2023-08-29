@@ -10,10 +10,7 @@ const ApiError = require("./utils/ApiError");
 const globalError = require("./middleware/errorMiddleware");
 const dbConnection = require("./config/database");
 //Routes
-const categoryRoute = require("./routes/categoryRoutes");
-const bookRoute = require("./routes/bookRoute");
-const userRoute = require("./routes/userRoute");
-const authRoute = require("./routes/authRoute");
+const mountRouts = require("./routes");
 
 //connect to db
 dbConnection();
@@ -43,10 +40,7 @@ if (process.env.NODE_ENV === "development") {
 }
 
 //Mount Routers
-app.use("/api/v1/categories", categoryRoute);
-app.use("/api/v1/books", bookRoute);
-app.use("/api/v1/users", userRoute);
-app.use("/api/v1/auth", authRoute);
+mountRouts(app);
 
 app.all("*", (req, res, next) => {
   next(new ApiError(`Can't find this route: ${req.originalUrl}`, 400));

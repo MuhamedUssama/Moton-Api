@@ -2,7 +2,7 @@ const multer = require("multer");
 const ApiError = require("../utils/ApiError");
 
 exports.uploadSingleImage = (fieldName) => {
-  //1- DiskStorage engine
+  // 1- DiskStorage engine
   // const multerStorage = multer.diskStorage({
   //   destination: function (req, file, cb) {
   //     cb(null, "uploads/category");

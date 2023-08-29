@@ -1,6 +1,7 @@
 const sharp = require("sharp");
 const { v4: uuidv4 } = require("uuid");
 const asyncHandler = require("express-async-handler");
+const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 
 const factory = require("./handlersFactory");
@@ -92,3 +93,60 @@ exports.changeUserPassword = asyncHandler(async (req, res, next) => {
 //@Route -->   DELETE /api/v1/users/id:
 //@Access -->  Admin
 exports.deleteUser = factory.deleteOne(User);
+
+//@Description -->   Get logged user data
+//@Route -->   GET /api/v1/users/ getMe
+//@Access -->  Admin - User who is logn in
+exports.getLoggedUserData = asyncHandler(async (req, res, next) => {
+  req.params.id = req.user._id;
+  next();
+});
+
+//@Description -->   Update logged user password
+//@Route -->   PUT /api/v1/users/ updateMyPassword
+//@Access -->  Admin - User who is logn in
+exports.updateLoggedUserPassword = asyncHandler(async (req, res, next) => {
+  // 1- update user password based on (req.user._id)
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      password: await bcrypt.hash(req.body.password, 12),
+      passwordChangedAt: Date.now(),
+    },
+    {
+      new: true,
+    }
+  );
+
+  // 2- Generate token
+  const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET_KEY, {
+    expiresIn: process.env.JWT_EXPIRE_TIME,
+  });
+
+  res.status(200).json({ date: user, token });
+});
+
+//@Description -->   Update logged user data (without password or role)
+//@Route -->   PUT /api/v1/users/ updateMe
+//@Access -->  Admin - User who is logn in
+exports.updateLoggedUserData = asyncHandler(async (req, res, next) => {
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      name: req.body.name,
+      email: req.body.email,
+      phone: req.body.phone,
+      profileImage: req.body.profileImage,
+    },
+    { new: true }
+  );
+  res.status(200).json({ data: updatedUser });
+});
+
+//@Description -->   Deactivate logged user
+//@Route -->   DELETE /api/v1/users/ deleteMe
+//@Access -->  Admin - User who is logn in
+exports.deleteLoggedUserData = asyncHandler(async (req, res, next) => {
+  await User.findByIdAndUpdate(req.user._id, { active: false });
+  res.status(204).json({ status: "Success" });
+});

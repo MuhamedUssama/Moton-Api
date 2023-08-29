@@ -37,22 +37,18 @@ class ApiFeatures {
     return this;
   }
 
-  search(modelName) {
-    if (this.queryStr.keyword) {
-      let query = {};
-      if (modelName === "books") {
-        query.$or = [
-          { bookName: { $regex: this.queryStr.keyword, $options: "i" } },
-          { description: { $regex: this.queryStr.keyword, $options: "i" } },
-        ];
-      } else {
-        query = { name: { $regex: this.queryStr.keyword, $options: "i" } };
-      }
+  // search() {
+  //   if (this.queryStr.keyword) {
+  //     const query = {};
+  //     query.$or = [
+  //       { bookName: { $regex: this.queryStr.keyword, $options: "i" } },
+  //       { description: { $regex: this.queryStr.keyword, $options: "i" } },
+  //     ];
 
-      this.mongooseQuery = this.mongooseQuery.find(query);
-    }
-    return this;
-  }
+  //     this.mongooseQuery = this.mongooseQuery.find(query);
+  //   }
+  //   return this;
+  // }
 
   paginate(countDocuments) {
     const page = this.queryStr.page * 1 || 1;

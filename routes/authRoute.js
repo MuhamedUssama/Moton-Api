@@ -5,13 +5,21 @@ const {
   loginValidator,
 } = require("../utils/validator/authValidator");
 
-const { signup, login, forgotPassword } = require("../services/authServices");
+const {
+  signup,
+  login,
+  forgotPassword,
+  verifyPassResetCode,
+  resetPassword,
+} = require("../services/authServices");
 
 const router = express.Router();
 
 router.post("/signup", signupValidator, signup);
 router.post("/login", loginValidator, login);
 router.post("/forgotPassword", forgotPassword);
+router.post("/verifyResetCode", verifyPassResetCode);
+router.put("/resetPassword", resetPassword);
 
 // router
 //   .route("/:id")

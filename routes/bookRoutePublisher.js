@@ -2,20 +2,17 @@ const express = require("express");
 
 const {
   createBookValidator,
-  getBookValidator,
   updateBookValidator,
   deleteBookValidator,
 } = require("../utils/validator/bookValidator");
 
 const {
-  getBooks,
-  getBook,
-  createBookAdmin,
-  updateBookAdmin,
-  deleteBookAdmin,
+  createBookPublisher,
+  updateBookPublisher,
+  deleteBookPublisher,
   uploadBookImage,
   resizeImages,
-  uploadBookPdf,
+  // uploadBookPdf,
 } = require("../services/bookServices");
 
 const authServices = require("../services/authServices");
@@ -29,48 +26,31 @@ const router = express.Router();
 //GET /books/ndfjhjdshfhsdhfusdi/reviews/hfudhfuihdsfh
 router.use("/:bookId/reviews", reviewsRoute);
 
-router.route("/").get(getBooks).post(
+router.route("/").post(
   authServices.prodect,
-  authServices.allowedTo("admin"),
+  authServices.allowedTo("admin", "publisher"),
   uploadBookImage,
   resizeImages,
-
+  // uploadBookPdf,
   createBookValidator,
-  createBookAdmin
+  createBookPublisher
 );
-
 router
   .route("/:id")
-  .get(getBookValidator, getBook)
   .put(
     authServices.prodect,
-    authServices.allowedTo("admin"),
+    authServices.allowedTo("admin", "publisher"),
     uploadBookImage,
     resizeImages,
-    uploadBookPdf,
+    // uploadBookPdf,
     updateBookValidator,
-    updateBookAdmin
+    updateBookPublisher
   )
   .delete(
     authServices.prodect,
-    authServices.allowedTo("admin"),
+    authServices.allowedTo("admin", "publisher"),
     deleteBookValidator,
-    deleteBookAdmin
+    deleteBookPublisher
   );
-
-const Book = require("../models/bookModel");
-
-//search api
-// url   /api/v1/books/search/searchWord
-router.get("/search/:key", async (req, res) => {
-  const data = await Book.find({
-    $or: [
-      { bookName: { $regex: req.params.key } },
-      { slug: { $regex: req.params.key } },
-      { description: { $regex: req.params.key } },
-    ],
-  });
-  res.send(data);
-});
 
 module.exports = router;

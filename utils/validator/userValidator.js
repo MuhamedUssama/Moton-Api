@@ -165,3 +165,50 @@ exports.deleteUserValidator = [
   check("id").isMongoId().withMessage("Invalid User id"),
   validatorMiddleware,
 ];
+
+exports.updateLoggedUserValidator = [
+  body("name")
+    .optional()
+    .custom((val, { req }) => {
+      req.body.slug = slugify(val);
+      return true;
+    }),
+  check("email")
+    .optional()
+    .isEmail()
+    .withMessage("Invalid Email Format")
+    .custom((val) =>
+      userModel.findOne({ email: val }).then((user) => {
+        if (user) {
+          return Promise.reject(new Error("E-mail already used"));
+        }
+      })
+    ),
+  check("profileImage").optional(),
+  check("phone")
+    .optional()
+    .isMobilePhone([
+      "ar-AE", // United Arab Emirates
+      "ar-SA", // Saudi Arabia
+      "ar-EG", // Egypt
+      "ar-IQ", // Iraq
+      "ar-JO", // Jordan
+      "ar-KW", // Kuwait
+      "ar-LB", // Lebanon
+      "ar-MA", // Morocco
+      "ar-DZ", // Algeria
+      "ar-TN", // Tunisia
+      "en-US", // United States
+      "zh-CN", // China
+      "hi-IN", // India
+      "es-MX", // Mexico
+      "pt-BR", // Brazil
+      "id-ID", // Indonesia
+      "pa-PK", // Pakistan
+      "bn-BD", // Bangladesh
+      "ru-RU", // Russia
+      "ja-JP", // Japan
+    ])
+    .withMessage("Invalid phone number"),
+  validatorMiddleware,
+];

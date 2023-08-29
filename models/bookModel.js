@@ -103,14 +103,21 @@ const bookSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    pdf: {
-      data: Buffer, // Store the PDF file content
-      contentType: String, // Store the content type (e.g., "application/pdf")
-      // required: true,
-    },
+    pdf: { title: String, content: Buffer },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    // To enable virtuals populate
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
+
+bookSchema.virtual("reviews", {
+  ref: "Review",
+  foreignField: "book",
+  localField: "_id",
+});
 
 bookSchema.pre(/^find/, function (next) {
   this.populate({
@@ -142,6 +149,24 @@ bookSchema.post("init", (doc) => {
 //create
 bookSchema.post("save", (doc) => {
   setImageURL(doc);
+});
+
+const setPdfURL = (doc) => {
+  //return image url + image name
+  if (doc.pdf) {
+    const pdfUrl = `${process.env.BASE_URL}/pdfs/${doc.pdf}`;
+    doc.pdf = pdfUrl;
+  }
+};
+
+//find & update
+bookSchema.post("init", (doc) => {
+  setPdfURL(doc);
+});
+
+//create
+bookSchema.post("save", (doc) => {
+  setPdfURL(doc);
 });
 
 const BookModel = mongoose.model("Book", bookSchema);
