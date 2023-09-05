@@ -6,6 +6,7 @@ const factory = require("./handlersFactory");
 const Book = require("../models/bookModel");
 const Cart = require("../models/cartModel");
 const Order = require("../models/orderModel");
+const User = require("../models/userModel");
 
 //@Description -->   Create cash order
 //@Route -->         POST /api/v1/order/cartId
@@ -49,8 +50,6 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
 
     // 5- Clear cart depend on cartId
     await Cart.findByIdAndDelete(req.params.cartId);
-
-    //get cout of sales books
   }
 
   res.status(201).json({ status: "success", data: order });
@@ -196,6 +195,40 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
   res.status(200).json({ status: "success", session });
 });
 
+const createCardOrder = async (session) => {
+  const cartId = session.client_reference_id;
+  const shippingAddress = session.metadata;
+  const orderPrice = session.amount_total / 100;
+
+  const cart = await Cart.findById(cartId);
+  const user = await User.findOne({ email: session.customer_email });
+
+  //create order
+  const order = await Order.create({
+    user: user._id,
+    cartItems: cart.cartItems,
+    shippingAddress,
+    totalOrderPrice: orderPrice,
+    isPaid: true,
+    paidAt: Date.now(),
+    paymentMethodType: "card",
+  });
+
+  // 4- After craeting order, decrement books quantity and increment books sold
+  if (order) {
+    const bulkOption = cart.cartItems.map((item) => ({
+      updateOne: {
+        filter: { _id: item.book },
+        update: { $inc: { quantity: -item.quantity, sold: +item.quantity } },
+      },
+    }));
+    await Book.bulkWrite(bulkOption, {});
+
+    // 5- Clear cart depend on cartId
+    await Cart.findByIdAndDelete(cartId);
+  }
+};
+
 exports.webhookCheckout = asyncHandler(async (req, res, next) => {
   const sig = req.headers["stripe-signature"];
 
@@ -212,7 +245,9 @@ exports.webhookCheckout = asyncHandler(async (req, res, next) => {
   }
 
   if (event.type === "checkout.session.completed") {
-    console.log("Create Order Here....");
-    console.log(event.data.object.client_reference_id);
+    // create order
+    createCardOrder(event.data.object);
   }
+
+  res.status(200).json({ recived: true });
 });
