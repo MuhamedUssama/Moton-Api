@@ -13,6 +13,7 @@ const contactRoute = require("./contactRoute");
 const eventRoute = require("./eventRoute");
 const eventFormRoute = require("./eventFormRoute");
 const pageImageRoute = require("./pageImageRoute");
+const pdfRoute = require("./pdfRoute");
 
 const mountRouts = (app) => {
   app.use("/api/v1/categories", categoryRoute);
@@ -30,6 +31,7 @@ const mountRouts = (app) => {
   app.use("/api/v1/events", eventRoute);
   app.use("/api/v1/eventform", eventFormRoute);
   app.use("/api/v1/pageimage", pageImageRoute);
+  app.use("/api/v1/", pdfRoute);
 };
 
 module.exports = mountRouts;

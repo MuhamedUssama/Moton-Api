@@ -15,7 +15,6 @@ const {
   deleteBookAdmin,
   uploadBookImage,
   resizeImages,
-  uploadBookPdf,
 } = require("../services/bookServices");
 
 const authServices = require("../services/authServices");
@@ -24,20 +23,45 @@ const reviewsRoute = require("./reviewRoute");
 
 const router = express.Router();
 
+const pdfFileMiddleware = require("../middleware/uploadPdfMiddleware");
+
 //POST /books/ndfjhjdshfhsdhfusdi/reviews
 //GET /books/ndfjhjdshfhsdhfusdi/reviews
 //GET /books/ndfjhjdshfhsdhfusdi/reviews/hfudhfuihdsfh
 router.use("/:bookId/reviews", reviewsRoute);
 
-router.route("/").get(getBooks).post(
-  authServices.prodect,
-  authServices.allowedTo("admin"),
-  uploadBookImage,
-  resizeImages,
+router
+  .route("/")
+  .get(getBooks)
+  .post(
+    authServices.prodect,
+    authServices.allowedTo("admin"),
+    uploadBookImage,
+    resizeImages,
+    createBookValidator,
+    createBookAdmin
+  );
 
-  createBookValidator,
-  createBookAdmin
-);
+const uploadPdf = require("../middleware/uploadPdfMiddleware");
+
+router.post("/upload", (req, res) => {
+  uploadPdf.postPDF(req, res);
+});
+
+const BookModel = require("../models/bookModel");
+const pdfFileMiddlewaree = require("../middleware/pdf");
+
+// Route to update the 'pdf' field in the Book model
+router.post("/upload-pdf/:bookId", pdfFileMiddlewaree, (req, res) => {
+  // The 'pdfFileMiddleware' middleware will handle the PDF upload and update the 'pdf' field.
+  // You can access the updated book object in 'req.book' (assuming it was updated in the middleware).
+
+  // Optionally, you can respond with the updated book object.
+  res.status(200).json({
+    message: "PDF uploaded and book updated successfully",
+    updatedBook: req.book,
+  });
+});
 
 router
   .route("/:id")
@@ -47,7 +71,6 @@ router
     authServices.allowedTo("admin"),
     uploadBookImage,
     resizeImages,
-    uploadBookPdf,
     updateBookValidator,
     updateBookAdmin
   )

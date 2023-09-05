@@ -1,3 +1,4 @@
+const stripe = require("stripe")(process.env.Stripe_Secret);
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../utils/ApiError");
 const factory = require("./handlersFactory");
@@ -127,4 +128,70 @@ exports.updateOrderToDelivered = asyncHandler(async (req, res, next) => {
   const updatedOrder = await order.save();
 
   res.status(200).json({ status: "success", data: updatedOrder });
+});
+
+//@Description -->   Get checkout session from stripre and send it as response
+//@Route -->         GET /api/v1/order/checkout-session/cartId
+//@Access -->        Logged User
+exports.checkoutSession = asyncHandler(async (req, res, next) => {
+  //app setting
+  const shippingPrice = 0;
+  const taxPrice = 0;
+
+  // 1- Get cart depend on cartId
+  const cart = await Cart.findById(req.params.cartId);
+  if (!cart) {
+    return next(
+      new ApiError(`There is no such cart with id: ${req.params.cartId}`, 404)
+    );
+  }
+
+  // 2- Get order price depend on cart price "Check if coupon apply"
+  const cartPrice = cart.totalPriceAfterDiscount
+    ? cart.totalPriceAfterDiscount
+    : cart.totalCartPrice;
+
+  const totalOrderPrice = cartPrice + taxPrice + shippingPrice;
+
+  // 3- create stripe checkout session
+
+  const book = await Book.findById(cart.cartItems[0].book); // Assuming there's one book in the cart
+
+  if (!book) {
+    return next(
+      new ApiError(
+        `The book associated with this cart could not be found.`,
+        404
+      )
+    );
+  }
+
+  // Extract the bookName from the fetched book information
+  const bookName = book.bookName;
+
+  const session = await stripe.checkout.sessions.create({
+    line_items: [
+      {
+        // name: req.user.name,
+        quantity: 1,
+        price_data: {
+          currency: "egp",
+          unit_amount: totalOrderPrice * 100,
+          product_data: {
+            name: bookName,
+          },
+        },
+      },
+    ],
+    mode: "payment",
+    success_url: `${req.protocol}://${req.get("host")}/orders`,
+    cancel_url: `${req.protocol}://${req.get("host")}/cart`,
+    customer_email: req.user.email,
+    client_reference_id: req.params.cartId,
+    //client_reference_id: cart._id        momkn de bardu
+    metadata: req.body.shippingAddress,
+  });
+
+  // 4- send session to response
+  res.status(200).json({ status: "success", session });
 });

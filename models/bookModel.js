@@ -103,7 +103,7 @@ const bookSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    pdf: { title: String, content: Buffer },
+    pdf: { type: String },
   },
   {
     timestamps: true,

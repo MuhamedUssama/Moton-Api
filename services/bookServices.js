@@ -4,7 +4,8 @@ const multer = require("multer");
 const { v4: uuidv4 } = require("uuid");
 
 const { uploadSingleImage } = require("../middleware/uploadImagesMiddleware");
-const { uploadPdf } = require("../middleware/uploadPdfMiddleware");
+// const { pdfFileObject } = require("../middleware/uploadPdfMiddleware"); // Import the PDF upload middleware
+const { uploadPdf } = require("../middleware/pdf");
 
 const factory = require("./handlersFactory");
 const Book = require("../models/bookModel");
@@ -30,8 +31,41 @@ exports.resizeImages = asyncHandler(async (req, res, next) => {
   next();
 });
 
-//upload single pdf
-exports.uploadBookPdf = uploadPdf("pdf");
+//@Description --> Create Book with PDF
+//@Route --> POST /api/v1/books/pdf
+//@Access --> Admin
+exports.createBookWithPdf = asyncHandler(async (req, res, next) => {
+  // Check if the request includes a PDF file
+  if (req.file && req.file.fieldname === "pdf") {
+    // Create a new book with the PDF file
+    const newBook = new Book({
+      // Add other book properties from req.body
+      // ...
+      pdf: req.file.filename, // Assuming you store the PDF file name in the 'pdf' field
+    });
+
+    try {
+      await newBook.save();
+      res.status(201).json({
+        status: "success",
+        data: {
+          book: newBook,
+        },
+      });
+    } catch (error) {
+      res.status(400).json({
+        status: "fail",
+        message: error.message,
+      });
+    }
+  } else {
+    // If no PDF file is included, return an error response
+    return res.status(400).json({
+      status: "fail",
+      message: "PDF file is required for this operation.",
+    });
+  }
+});
 
 //@Description -->   Get list of Books
 //@Route -->   GET /api/v1/books
@@ -72,34 +106,3 @@ exports.deleteBookAdmin = factory.deleteOne(Book);
 //@Route -->   DELETE /api/v1/publisher/books/id:
 //@Access -->  Publisher
 exports.deleteBookPublisher = factory.deleteOne(Book);
-
-// Example of how to use the PDF upload middleware in a route handler
-// exports.createBookWithPdf = asyncHandler(async (req, res, next) => {
-//   // Use the uploadBookPdf middleware to handle PDF upload
-//   exports.uploadBookPdf(req, res, async (err) => {
-//     if (err) {
-//       return next(err);
-//     }
-
-//     // Save the PDF filename in the req.body
-//     if (req.file) {
-//       req.body.pdf = req.file.filename;
-//     }
-
-//     // Now you can continue with your logic to create a book
-//     try {
-//       const newBook = await Book.create(req.body);
-//       res.status(201).json({
-//         status: "success",
-//         data: {
-//           book: newBook,
-//         },
-//       });
-//     } catch (error) {
-//       res.status(400).json({
-//         status: "fail",
-//         message: error.message,
-//       });
-//     }
-//   });
-// });

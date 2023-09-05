@@ -8,11 +8,19 @@ const {
   getTotalSalesAchieved,
   updateOrderToPaid,
   updateOrderToDelivered,
+  checkoutSession,
 } = require("../services/orderServieces");
 
 const authServices = require("../services/authServices");
 
 const router = express.Router();
+
+router.get(
+  "/checkout-session/:cartId",
+  authServices.prodect,
+  authServices.allowedTo("user"),
+  checkoutSession
+);
 
 router
   .route("/:cartId")
