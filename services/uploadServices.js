@@ -13,7 +13,7 @@ exports.uploadPdfMiddleware = multer({
             cb(null, fullPath)
         },
         filename: (req, file, cb) => {
-            const fileName = `pdf-${Date.now()} ${path.extname(file.originalname)}`;
+            const fileName = `pdf-${Date.now()}${path.extname(file.originalname)}`;
             cb(null, fileName)
         }
     }),
