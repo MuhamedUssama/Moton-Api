@@ -7,6 +7,9 @@ const Book = require("../models/bookModel");
 const Cart = require("../models/cartModel");
 const Order = require("../models/orderModel");
 const User = require("../models/userModel");
+const { initPayment, createOrder, createPaymentKey, checkIfOrderPaid } = require("./paymob.services");
+const PaymobToken = require("../models/paymobTokens");
+const { createPaypalPayment, executePaypalPayment } = require("./paypal");
 
 //@Description -->   Create cash order
 //@Route -->         POST /api/v1/order/cartId
@@ -137,6 +140,11 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
   const shippingPrice = 0;
   const taxPrice = 0;
 
+  const paymentGetaway = req.query.payment_getaway
+  const availablePaymentGetaways = ['paypal', 'paymob']
+  if (!availablePaymentGetaways.includes(paymentGetaway))
+    return next(new ApiError("Please specify the payment getaway"), 400);
+
   // 1- Get cart depend on cartId
   const cart = await Cart.findById(req.params.cartId);
   if (!cart) {
@@ -165,49 +173,45 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
     );
   }
 
-  // Extract the bookName from the fetched book information
-  const bookName = book.bookName;
+  if (paymentGetaway === 'paymob') {
+    const totalOrderPriceAsCents = parseInt(totalOrderPrice * 100);
+    const token = await initPayment();
+    console.log(token)
+    const paymobOrderId = await createOrder(token, totalOrderPriceAsCents, `${cart._id.toString()} ${Date.now()}`);
+    const paymentKey = await createPaymentKey(token, totalOrderPriceAsCents, paymobOrderId, process.env.PAYMOB_INTEGRATION_ID);
 
-  const session = await stripe.checkout.sessions.create({
-    line_items: [
-      {
-        // name: req.user.name,
-        quantity: 1,
-        price_data: {
-          currency: "egp",
-          unit_amount: totalOrderPrice * 100,
-          product_data: {
-            name: bookName,
-          },
-        },
-      },
-    ],
-    mode: "payment",
-    success_url: `${req.protocol}://${req.get("host")}/orders`,
-    cancel_url: `${req.protocol}://${req.get("host")}/cart`,
-    customer_email: req.user.email,
-    client_reference_id: req.params.cartId,
-    //client_reference_id: cart._id        momkn de bardu
-    metadata: req.body.shippingAddress,
-  });
-
+    const paymobToken = new PaymobToken({
+      token,
+      orderId: paymobOrderId,
+      cart: cart._id,
+    })
+    await paymobToken.save();
+    res.status(200).json({ status: "success", session: paymentKey });
+  }
+  if (paymentGetaway === 'paypal') {
+    const paymentUrl = await createPaypalPayment(totalOrderPrice, 'USD', cart._id)
+    res.status(200).json({ status: "success", session: paymentUrl });
+  }
   // 4- send session to response
-  res.status(200).json({ status: "success", session });
 });
 
-const createCardOrder = async (session) => {
-  const cartId = session.client_reference_id;
-  const shippingAddress = session.metadata;
-  const orderPrice = session.amount_total / 100;
+const createCardOrder = async (cartId, orderPrice) => {
+  // const cartId = session.client_reference_id;
+  // const orderPrice = session.amount_total / 100;
+  // const shippingAddress = session.metadata;
 
   const cart = await Cart.findById(cartId);
-  const user = await User.findOne({ email: session.customer_email });
 
+  if (!cart) {
+    return next(
+      new ApiError(`There is no such cart with id: ${req.params.cartId}`, 404)
+    );
+  }
   //create order
   const order = await Order.create({
-    user: user._id,
+    user: cart.user,
     cartItems: cart.cartItems,
-    shippingAddress,
+    // shippingAddress,
     totalOrderPrice: orderPrice,
     isPaid: true,
     paidAt: Date.now(),
@@ -228,6 +232,46 @@ const createCardOrder = async (session) => {
     await Cart.findByIdAndDelete(cartId);
   }
 };
+
+exports.createPaymobOrder = asyncHandler(async (req, res, next) => {
+  const { transactionId, orderId } = req.query;
+
+  if (!transactionId || !orderId) {
+    return next(new ApiError("There is no order with this id"), 404);
+  }
+  const paymobToken = await PaymobToken.findOne({ orderId });
+  if (!paymobToken) {
+    return next(new ApiError("There is no order with this id"), 404);
+  }
+
+  const token = paymobToken.token;
+
+  const { isSuccess, amount_cents } = await checkIfOrderPaid(token, transactionId);
+  if (!isSuccess) {
+    return next(new ApiError("There is no order with this id"), 404);
+  }
+
+  createCardOrder(paymobToken.cart, amount_cents / 100);
+
+  res.status(200).json({ status: "success", data: "Order created successfully" });
+})
+exports.createPaypalOrder = asyncHandler(async (req, res, next) => {
+  const { paymentId } = req.query;
+
+  const payment = await executePaypalPayment(paymentId);
+
+  if (!payment) {
+    return next(new ApiError("There is no order with this id"), 404);
+  }
+
+  const cartId = payment?.transactions[0]?.description;
+  const orderPrice = payment?.transactions[0]?.amount?.total;
+
+  createCardOrder(cartId, orderPrice);
+
+  res.status(200).json({ status: "success", data: "Order created successfully" });
+})
+
 
 exports.webhookCheckout = asyncHandler(async (req, res, next) => {
   const sig = req.headers["stripe-signature"];
