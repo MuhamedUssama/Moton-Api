@@ -5,11 +5,11 @@ const paymobTokensSchema = new Schema({
     type: String,
     required: true
   },
-  order: {
+  orderId: {
     type: Number,
     required: true
   },
-  cartId: {
+  cart: {
     type: Schema.Types.ObjectId,
     ref: 'Cart',
     required: true
