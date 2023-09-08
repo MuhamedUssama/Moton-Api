@@ -9,6 +9,8 @@ const {
   updateOrderToPaid,
   updateOrderToDelivered,
   checkoutSession,
+  createPaypalOrder,
+  createPaymobOrder,
 } = require("../services/orderServieces");
 
 const authServices = require("../services/authServices");
@@ -21,7 +23,19 @@ router.get(
   authServices.allowedTo("user"),
   checkoutSession
 );
+router.get(
+  "/create-paypal-order",
+  authServices.prodect,
+  authServices.allowedTo("user"),
+  createPaypalOrder
+)
 
+router.get(
+  "/create-paymob-order",
+  authServices.prodect,
+  authServices.allowedTo("user"),
+  createPaymobOrder
+)
 router
   .route("/:cartId")
   .post(authServices.prodect, authServices.allowedTo("user"), createCashOrder);
@@ -62,5 +76,6 @@ router.put(
   authServices.allowedTo("admin"),
   updateOrderToDelivered
 );
+
 
 module.exports = router;
